@@ -1,0 +1,115 @@
+﻿using System;
+using System.Collections;
+using System.Collections.Generic;
+using System.IO;
+using TMPro;
+using UnityEngine;
+using UnityEngine.SceneManagement;
+
+public class LevelDetail : MonoBehaviour
+{
+    public static LevelDetail instance;
+
+    public static Coroutine loadlevel;
+    public static int levelNumber, currentScore;
+    public static int height;
+    public static int width;
+    public static int moveLimit;
+    public static int moveLeft;
+    public static string[] tileList;
+    public static TextMeshProUGUI moveText;
+    public static TextMeshProUGUI scoreText;
+
+    public static Dictionary<string, int> colorPoints = new()
+    {
+        { "blue", 200 },
+        { "red", 100 },
+        { "green", 150 },
+        { "yellow", 250 }
+    };
+
+    private void Awake()
+    {
+        instance = this;
+    }
+    // Start is called before the first frame update
+    void Start()
+    {
+        string fileName = Globals.SelectedLevel <= 15 ?
+            Globals.DataPathText + Globals.SelectedLevel :
+            Globals.AlternativeDataPathText + (Globals.SelectedLevel - 15);
+        string[] lines = File.ReadAllLines(fileName);
+
+        levelNumber = int.Parse(lines[0].Split(" ")[1]); //Line indicating level number
+        width = int.Parse(lines[1].Split(" ")[1]);//Line indicating width
+        height = int.Parse(lines[2].Split(" ")[1]);//Line indicating height
+        moveLimit = int.Parse(lines[3].Split(" ")[1]);//Line indicating moveLimit
+        moveLeft = moveLimit;
+        tileList = lines[4].Split(" ")[1].Split(",");//Line indicating moveLimit
+        currentScore = 0;
+        moveText = GameObject.FindGameObjectWithTag("move").GetComponent<TextMeshProUGUI>();
+        scoreText = GameObject.FindGameObjectWithTag("score").GetComponent<TextMeshProUGUI>();
+
+        setLevelValues();
+    }
+
+    private void setLevelValues()
+    {
+        GameObject.FindGameObjectWithTag("level").GetComponent<TextMeshProUGUI>().text = levelNumber.ToString();
+        moveText.text = moveLimit.ToString();
+        scoreText.text = "0";
+    }
+
+    public static void UpdateMove()
+    {
+        int currentMoveLeft = int.Parse(moveText.text);
+        currentMoveLeft -= 1;
+        moveLeft = currentMoveLeft;
+        moveText.text = currentMoveLeft.ToString();
+
+        if (currentMoveLeft == 0)
+        {
+            UpdatePlayerPref();
+            bool IsLevelPlayed = MainManager.IsLevelPlayed(levelNumber);
+
+            if (IsLevelPlayed && MainManager.getScoreForLevel(levelNumber) >= currentScore)
+            {
+                instance.StartCoroutine(instance.LoadLevelAfterDelay("EndOfLevel", 1.5f));
+            }
+            else
+            {
+                MainManager.setScoreForLevel(levelNumber, currentScore);
+                PlayerPrefs.SetInt("Level" + levelNumber, currentScore);
+                instance.StartCoroutine(instance.LoadLevelAfterDelay("HighScore", 1.5f));
+            }
+        }
+    }
+
+    public static void UpdatePlayerPref()
+    {
+        if (PlayerPrefs.GetInt("FurthestPlayedLevel") <= levelNumber)
+        {
+            PlayerPrefs.SetInt("FurthestPlayedLevel", levelNumber + 1);
+            PlayerPrefs.SetInt("Unlocked", levelNumber);
+        }
+    }
+
+    IEnumerator LoadLevelAfterDelay(string sceneName, float delay)
+    {
+        yield return new WaitForSeconds(delay);
+        SceneManager.LoadScene(sceneName);
+    }
+
+
+    public static void updateScore(string color)
+    {
+        currentScore += colorPoints[color] * width;
+        scoreText.text = currentScore.ToString();
+    }
+
+    // Update is called once per frame
+    void Update()
+    {
+
+    }
+}
